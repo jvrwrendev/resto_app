@@ -2,11 +2,12 @@ import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Banknote, ClipboardList, Package, AlertTriangle, ShoppingBag } from 'lucide-react-native';
+import { Banknote, ClipboardList, Package, AlertTriangle, ShoppingBag, Store, User } from 'lucide-react-native';
 import { Header, ScreenContainer, Card, SectionTitle, EmptyState } from '@/components/ui';
 import { StatCard } from '@/components/feature/StatCard';
 import { OrderRowView } from '@/components/feature/OrderRowView';
 import { SalesBarChart } from '@/components/feature/SalesBarChart';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { todayStats, hourlySales, listOrdersByDate } from '@/database/repositories/orderRepository';
 import { listLowStockProducts } from '@/database/repositories/productRepository';
 import { formatPHP } from '@/utils/currency';
@@ -17,6 +18,7 @@ import type { Product } from '@/database/repositories/productRepository';
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const storeSettings = useSettingsStore((s) => s.storeSettings);
   const [stats, setStats] = useState(() => todayStats(todayKey()));
   const [hourly, setHourly] = useState(() => hourlySales(todayKey()));
   const [lowStock, setLowStock] = useState<Product[]>([]);
@@ -38,6 +40,26 @@ export function DashboardScreen() {
   return (
     <ScreenContainer edges={['top']} onRefresh={load}>
       <Header title="Dashboard" subtitle="Today's summary" />
+
+      <Card className="mb-4">
+        <View className="flex-row items-center gap-3">
+          <View className="h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center">
+            <User size={22} color="#B45309" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-xs text-muted-foreground">Welcome back</Text>
+            <Text className="text-lg font-semibold text-foreground">
+              {storeSettings.ownerName || 'Store Owner'}
+            </Text>
+            <View className="flex-row items-center gap-1 mt-0.5">
+              <Store size={12} color="#64748B" />
+              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                {storeSettings.storeName}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Card>
 
       <View className="flex-row gap-3 mb-3">
         <StatCard

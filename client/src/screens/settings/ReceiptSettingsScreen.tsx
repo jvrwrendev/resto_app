@@ -10,6 +10,7 @@ export function ReceiptSettingsScreen() {
   const toast = useToast();
 
   const [storeName, setStoreName] = useState(storeSettings.storeName);
+  const [ownerName, setOwnerName] = useState(storeSettings.ownerName);
   const [address, setAddress] = useState(storeSettings.address);
   const [contact, setContact] = useState(storeSettings.contact);
   const [footer, setFooter] = useState(storeSettings.footer);
@@ -22,8 +23,16 @@ export function ReceiptSettingsScreen() {
     }
     setSaving(true);
     try {
-      saveStore({ storeName: storeName.trim(), address: address.trim(), contact: contact.trim(), footer: footer.trim() });
-      toast.success('Receipt updated');
+      const current = useSettingsStore.getState().storeSettings;
+      saveStore({
+        ...current,
+        storeName: storeName.trim(),
+        ownerName: ownerName.trim(),
+        address: address.trim(),
+        contact: contact.trim(),
+        footer: footer.trim(),
+      });
+      toast.success('Store details updated');
     } catch (e) {
       toast.error(toUserMessage(e));
     } finally {
@@ -36,6 +45,8 @@ export function ReceiptSettingsScreen() {
       <View className="px-4 py-4">
         <Card>
           <Input label="Store name" value={storeName} onChangeText={setStoreName} />
+          <View className="h-3" />
+          <Input label="Owner name" value={ownerName} onChangeText={setOwnerName} />
           <View className="h-3" />
           <Input label="Store address" value={address} onChangeText={setAddress} multiline />
           <View className="h-3" />
@@ -51,6 +62,9 @@ export function ReceiptSettingsScreen() {
         <SectionTitle>Preview</SectionTitle>
         <Card>
           <Text className="text-base font-bold text-foreground text-center">{storeName || 'STORE NAME'}</Text>
+          {ownerName ? (
+            <Text className="text-xs text-foreground text-center mt-1">{ownerName}</Text>
+          ) : null}
           <Text className="text-xs text-muted-foreground text-center mt-1">{address}</Text>
           <Text className="text-xs text-muted-foreground text-center">{contact}</Text>
           <View className="h-2" />

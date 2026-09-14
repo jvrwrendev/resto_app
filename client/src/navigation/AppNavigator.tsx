@@ -60,7 +60,7 @@ export function AppNavigator() {
       <Stack.Screen
         name="ReceiptSettings"
         component={ReceiptSettingsScreen}
-        options={{ title: 'Receipt' }}
+        options={{ title: 'Store & owner' }}
       />
       <Stack.Screen
         name="ApplicationInfo"

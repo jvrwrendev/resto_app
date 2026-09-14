@@ -121,8 +121,8 @@ export function SettingsScreen() {
             <ReceiptText size={18} color="#B45309" />
           </View>
           <View className="flex-1">
-            <Text className="text-sm font-semibold text-foreground">Store & receipt</Text>
-            <Text className="text-xs text-muted-foreground mt-0.5">Name, address, contact, footer</Text>
+            <Text className="text-sm font-semibold text-foreground">Store & owner</Text>
+            <Text className="text-xs text-muted-foreground mt-0.5">Name, owner, address, contact, footer</Text>
           </View>
           <ChevronRight size={18} color="#64748B" />
         </Pressable>

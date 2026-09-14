@@ -4,6 +4,7 @@ import { DEFAULT_RECEIPT } from '@/constants';
 
 export interface StoreSettings {
   storeName: string;
+  ownerName: string;
   address: string;
   contact: string;
   footer: string;
@@ -23,6 +24,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   storeSettings: {
     storeName: DEFAULT_RECEIPT.storeName,
+    ownerName: '',
     address: DEFAULT_RECEIPT.address,
     contact: DEFAULT_RECEIPT.contact,
     footer: DEFAULT_RECEIPT.footer,
@@ -35,6 +37,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     set({
       storeSettings: {
         storeName: ensureSetting('storeName', DEFAULT_RECEIPT.storeName),
+        ownerName: getSetting('ownerName'),
         address: ensureSetting('address', DEFAULT_RECEIPT.address),
         contact: ensureSetting('contact', DEFAULT_RECEIPT.contact),
         footer: ensureSetting('footer', DEFAULT_RECEIPT.footer),
@@ -47,6 +50,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   saveStore(s) {
     setSetting('storeName', s.storeName);
+    setSetting('ownerName', s.ownerName);
     setSetting('address', s.address);
     setSetting('contact', s.contact);
     setSetting('footer', s.footer);

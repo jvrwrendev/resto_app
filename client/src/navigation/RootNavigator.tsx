@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, Pressable } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '@/auth/authStore';
 import { initDatabase } from '@/database/initDatabase';
 import { AuthNavigator } from './AuthNavigator';
 import { AppNavigator } from './AppNavigator';
-import { Button } from '@/components/ui';
-import { APP_NAME, APP_VERSION } from '@/constants';
+import { OnboardingNavigator } from './OnboardingNavigator';
+import { APP_NAME } from '@/constants';
 import { useProductStore } from '@/stores/productStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+
+const ONBOARDING_COMPLETE_KEY = 'bbqpos.onboardingComplete';
 
 export function RootNavigator() {
   const session = useAuthStore((s) => s.session);
@@ -19,6 +22,7 @@ export function RootNavigator() {
 
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
     try {
@@ -34,13 +38,29 @@ export function RootNavigator() {
   }, [hydrate]);
 
   useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const val = await SecureStore.getItemAsync(ONBOARDING_COMPLETE_KEY);
+        if (mounted) setOnboardingComplete(val === 'true');
+      } catch {
+        if (mounted) setOnboardingComplete(false);
+      }
+    };
+    check();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (dbReady && session) {
       loadProducts();
       loadSettings();
     }
   }, [dbReady, session, loadProducts, loadSettings]);
 
-  if (!dbReady || !isHydrated) {
+  if (!dbReady || !isHydrated || onboardingComplete === null) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         {dbError ? (
@@ -62,7 +82,13 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {session ? <AppNavigator /> : <AuthNavigator />}
+      {!onboardingComplete ? (
+        <OnboardingNavigator onComplete={() => setOnboardingComplete(true)} />
+      ) : session ? (
+        <AppNavigator />
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 }

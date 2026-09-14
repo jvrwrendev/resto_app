@@ -23,3 +23,8 @@ export type AppStackParamList = {
 export type AuthStackParamList = {
   Login: undefined;
 };
+
+export type OnboardingStackParamList = {
+  OnboardingTutorial: undefined;
+  OnboardingSetup: undefined;
+};

@@ -3,6 +3,7 @@ import { AppError } from '@/utils/errors';
 
 export type AppSettingKey =
   | 'storeName'
+  | 'ownerName'
   | 'address'
   | 'contact'
   | 'footer'
