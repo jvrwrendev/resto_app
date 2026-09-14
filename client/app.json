@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "BBQ POS",
+    "slug": "bbq-pos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#B45309"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bbqpos.app",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Used to connect to your thermal receipt printer.",
+        "NSBluetoothPeripheralUsageDescription": "Used to connect to your thermal receipt printer.",
+        "NSPhotoLibraryUsageDescription": "Used to attach a photo to your products.",
+        "NSCameraUsageDescription": "Used to take product photos."
+      }
+    },
+    "android": {
+      "package": "com.bbqpos.app",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image-picker",
+      "./plugins/withBluetoothPrinter"
+    ]
+  }
+}
