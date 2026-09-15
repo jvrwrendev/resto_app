@@ -1,15 +1,37 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, Pressable } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 import { ShoppingCart, Search, X } from 'lucide-react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Header, ScreenContainer, Tabs, EmptyState, Input, useToast } from '@/components/ui';
+import {
+  Header,
+  ScreenContainer,
+  Tabs,
+  EmptyState,
+  Input,
+  useToast,
+  useCartFly,
+} from '@/components/ui';
+import type { CartFlyRect } from '@/components/ui/CartFly';
 import { ProductCard } from '@/components/feature/ProductCard';
 import { useProductStore } from '@/stores/productStore';
 import { useCartStore } from '@/stores/cartStore';
 import type { AppStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+
+function measure(node: View | null): Promise<CartFlyRect | null> {
+  return new Promise((resolve) => {
+    if (!node) return resolve(null);
+    node.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }));
+  });
+}
 
 export function PosScreen() {
   const navigation = useNavigation<Nav>();
@@ -30,8 +52,13 @@ export function PosScreen() {
   const itemCount = getItemCount();
 
   const [query, setQuery] = useState('');
+  const [pulseToken, setPulseToken] = useState(0);
 
   const toast = useToast();
+  const cartFly = useCartFly();
+
+  const cartRef = useRef<View | null>(null);
+  const cardRefs = useRef<Record<number, View | null>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -58,7 +85,7 @@ export function PosScreen() {
     return map;
   }, [items]);
 
-  const onAdd = (p: typeof products[number]) => {
+  const onAdd = async (p: (typeof products)[number]) => {
     if (p.current_stock <= 0) {
       toast.error('Insufficient stock');
       return;
@@ -68,6 +95,20 @@ export function PosScreen() {
       name: p.name,
       price: p.price,
       availableStock: p.current_stock,
+    });
+
+    const [from, to] = await Promise.all([
+      measure(cardRefs.current[p.id] ?? null),
+      measure(cartRef.current),
+    ]);
+    if (!from || !to) return;
+
+    cartFly.fly({
+      from,
+      to,
+      onReach: () => {
+        setPulseToken((t) => t + 1);
+      },
     });
   };
 
@@ -92,22 +133,14 @@ export function PosScreen() {
           title="Point of Sale"
           subtitle="Tap a product to add to cart"
           right={
-            <Pressable
+            <CartIcon
+              count={itemCount}
+              pulseToken={pulseToken}
               onPress={goToCheckout}
-              className="relative p-2 -mr-2 active:opacity-60"
-              accessibilityRole="button"
-              accessibilityLabel={`Cart, ${itemCount} items`}
-              hitSlop={6}
-            >
-              <ShoppingCart size={22} color="#0F172A" />
-              {itemCount > 0 ? (
-                <View className="absolute top-0 right-0 h-4 min-w-[16px] px-1 rounded-full bg-destructive items-center justify-center">
-                  <Text className="text-[10px] font-bold text-white leading-none">
-                    {itemCount > 99 ? '99+' : itemCount}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
+              registerRef={(node) => {
+                cartRef.current = node;
+              }}
+            />
           }
         />
       </View>
@@ -158,7 +191,12 @@ export function PosScreen() {
           columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
           contentContainerStyle={{ flexGrow: 1, paddingTop: 4, paddingBottom: 24, gap: 12 }}
           renderItem={({ item }) => (
-            <View className="flex-1">
+            <View
+              className="flex-1"
+              ref={(node) => {
+                cardRefs.current[item.id] = node;
+              }}
+            >
               <ProductCard
                 id={item.id}
                 name={item.name}
@@ -178,5 +216,53 @@ export function PosScreen() {
         />
       )}
     </ScreenContainer>
+  );
+}
+
+function CartIcon({
+  count,
+  pulseToken,
+  onPress,
+  registerRef,
+}: {
+  count: number;
+  pulseToken: number;
+  onPress: () => void;
+  registerRef: (node: View | null) => void;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  useEffect(() => {
+    if (pulseToken === 0) return;
+    scale.value = withSequence(
+      withSpring(1.28, { damping: 10, stiffness: 240 }),
+      withSpring(1, { damping: 14, stiffness: 220 }),
+    );
+  }, [pulseToken, scale]);
+
+  return (
+    <View ref={registerRef} className="relative -mr-2">
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          className="p-2 active:opacity-60"
+          accessibilityRole="button"
+          accessibilityLabel={`Cart, ${count} items`}
+          hitSlop={6}
+        >
+          <ShoppingCart size={22} color="#0F172A" />
+          {count > 0 ? (
+            <View className="absolute top-0 right-0 h-4 min-w-[16px] px-1 rounded-full bg-destructive items-center justify-center">
+              <Text className="text-[10px] font-bold text-white leading-none">
+                {count > 99 ? '99+' : count}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }

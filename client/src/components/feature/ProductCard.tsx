@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View, Image, TextInput } from 'react-native';
-import { Minus, Plus, ImageOff } from 'lucide-react-native';
+import { Minus, Plus, ShoppingCart, ImageOff } from 'lucide-react-native';
 import { Card, Badge } from '@/components/ui';
 import { cn } from '@/theme/cn';
 import { formatPHP } from '@/utils/currency';
@@ -110,7 +110,7 @@ export function ProductCard({
           {inCart ? (
             <View className="items-stretch">
               <View
-                className="flex-row items-center justify-between rounded-xl border border-border bg-secondary overflow-hidden"
+                className="flex-row items-center justify-between rounded-xl border border-primary/40 bg-secondary overflow-hidden"
                 style={{ height: ACTION_HEIGHT }}
               >
                 <Pressable
@@ -131,7 +131,7 @@ export function ProductCard({
                     autoFocus
                     selectTextOnFocus
                     maxLength={5}
-                    className="w-14 text-center text-base font-semibold text-foreground p-0"
+                    className="w-14 text-center text-base font-semibold text-primary p-0"
                     style={{ height: ACTION_HEIGHT }}
                   />
                 ) : (
@@ -143,7 +143,7 @@ export function ProductCard({
                     accessibilityRole="button"
                     accessibilityLabel={`Set quantity for ${name}`}
                   >
-                    <Text className="text-base font-semibold text-foreground">{inCartQty}</Text>
+                    <Text className="text-base font-bold text-primary">{inCartQty}</Text>
                   </Pressable>
                 )}
                 <Pressable
@@ -165,24 +165,24 @@ export function ProductCard({
                 </Text>
               ) : null}
             </View>
+          ) : isOutOfStock ? (
+            <Pressable
+              disabled
+              className="rounded-xl bg-muted items-center justify-center"
+              style={{ height: ACTION_HEIGHT }}
+            >
+              <Text className="text-sm font-semibold text-muted-foreground">
+                Out of stock
+              </Text>
+            </Pressable>
           ) : (
             <Pressable
               onPress={onAdd}
-              disabled={isOutOfStock}
-              className={cn(
-                'rounded-xl items-center justify-center',
-                isOutOfStock ? 'bg-muted' : 'bg-primary active:opacity-80',
-              )}
+              className="flex-row items-center justify-center gap-2 rounded-xl bg-primary active:opacity-80"
               style={{ height: ACTION_HEIGHT }}
             >
-              <Text
-                className={cn(
-                  'text-sm font-semibold',
-                  isOutOfStock ? 'text-muted-foreground' : 'text-primary-foreground',
-                )}
-              >
-                {isOutOfStock ? 'Out of stock' : 'Add'}
-              </Text>
+              <ShoppingCart size={16} color="#FFFFFF" />
+              <Text className="text-sm font-semibold text-primary-foreground">Add to Cart</Text>
             </Pressable>
           )}
         </View>

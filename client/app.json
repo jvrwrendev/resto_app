@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "BBQ POS",
+    "name": "MINI POS",
     "slug": "bbq-pos",
+    "icon": "./assets/bbq.png",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -23,20 +24,26 @@
     "android": {
       "package": "com.bbqpos.app",
       "permissions": [
-        "BLUETOOTH",
-        "BLUETOOTH_ADMIN",
-        "BLUETOOTH_CONNECT",
-        "BLUETOOTH_SCAN",
-        "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
       "expo-secure-store",
       "expo-image-picker",
       "./plugins/withBluetoothPrinter"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4523bcd6-88c3-460b-b471-38ce4bb3066d"
+      }
+    }
   }
 }

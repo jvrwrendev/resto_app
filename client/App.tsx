@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import './global.css';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { ToastProvider, DialogProvider } from '@/components/ui';
+import { ToastProvider, DialogProvider, CartFlyProvider } from '@/components/ui';
 
 export default function App() {
   return (
@@ -14,8 +14,10 @@ export default function App() {
       <SafeAreaProvider>
         <DialogProvider>
           <ToastProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
+            <CartFlyProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </CartFlyProvider>
           </ToastProvider>
         </DialogProvider>
       </SafeAreaProvider>

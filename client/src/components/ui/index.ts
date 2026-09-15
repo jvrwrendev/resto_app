@@ -4,6 +4,7 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export { Tabs } from './Tabs';
 export { Badge } from './Badge';
 export { ToastProvider, useToast } from './Toast';
+export { CartFlyProvider, useCartFly } from './CartFly';
 export { DialogProvider, useDialog } from './Dialog';
 export { Sheet } from './Sheet';
 export { Skeleton } from './Skeleton';
