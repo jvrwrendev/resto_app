@@ -5,6 +5,9 @@ export type AppErrorCode =
   | 'PRINTER_NOT_FOUND'
   | 'PRINTER_CONNECT_FAIL'
   | 'PRINT_FAILED'
+  | 'BLUETOOTH_PERMISSION_DENIED'
+  | 'BLUETOOTH_DISABLED'
+  | 'BLUETOOTH_SCAN_FAILED'
   | 'DB_INIT_FAILED'
   | 'NOT_FOUND'
   | 'INVALID_INPUT'
@@ -26,6 +29,9 @@ const messages: Record<AppErrorCode, string> = {
   PRINTER_NOT_FOUND: 'No Bluetooth printer found',
   PRINTER_CONNECT_FAIL: 'Unable to connect to printer',
   PRINT_FAILED: 'Transaction saved, but receipt printing failed',
+  BLUETOOTH_PERMISSION_DENIED: 'Bluetooth permission denied',
+  BLUETOOTH_DISABLED: 'Bluetooth is turned off',
+  BLUETOOTH_SCAN_FAILED: 'Bluetooth scan could not start',
   DB_INIT_FAILED: 'Database initialization failed',
   NOT_FOUND: 'Item not found',
   INVALID_INPUT: 'Please check the entered values',

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Switch } from 'react-native';
-import { Bluetooth, RefreshCw, Plug, Unplug, Printer as PrinterIcon, Info } from 'lucide-react-native';
+import { View, Text, ScrollView, ActivityIndicator, Switch, Pressable, Linking } from 'react-native';
+import { Bluetooth, RefreshCw, Plug, Unplug, Printer as PrinterIcon, Info, AlertTriangle, Settings2 } from 'lucide-react-native';
 import { Button, Card, SectionTitle, useToast, Badge } from '@/components/ui';
 import { printerService, type PrinterDevice } from '@/services/printerService';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { toUserMessage } from '@/utils/errors';
+import { toUserMessage, AppError, type AppErrorCode } from '@/utils/errors';
+
+type ScanIssue = 'NONE' | 'PERMISSION' | 'BLUETOOTH_OFF' | 'SCAN_FAILED' | 'NO_DEVICES';
 
 export function PrinterSettingsScreen() {
   const toast = useToast();
@@ -18,21 +20,32 @@ export function PrinterSettingsScreen() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [issue, setIssue] = useState<ScanIssue>('NONE');
 
   const status = printerService.status();
   const nativeAvailable = printerService.isAvailable();
 
   const onScan = async () => {
     setError(null);
+    setIssue('NONE');
     if (!nativeAvailable) return;
     setScanning(true);
     try {
       const list = await printerService.scan();
       setDevices(list);
       if (list.length === 0) {
+        setIssue('NO_DEVICES');
         toast.error('No Bluetooth printer found');
       }
     } catch (e) {
+      const code: AppErrorCode | undefined = e instanceof AppError ? e.code : undefined;
+      if (code === 'BLUETOOTH_PERMISSION_DENIED') {
+        setIssue('PERMISSION');
+      } else if (code === 'BLUETOOTH_DISABLED') {
+        setIssue('BLUETOOTH_OFF');
+      } else if (code === 'BLUETOOTH_SCAN_FAILED') {
+        setIssue('SCAN_FAILED');
+      }
       setError(toUserMessage(e));
       toast.error(toUserMessage(e));
     } finally {
@@ -163,6 +176,8 @@ export function PrinterSettingsScreen() {
 
         {error ? <Text className="text-xs text-destructive mt-3">{error}</Text> : null}
 
+        {issue !== 'NONE' && !scanning ? <ScanHelpCard issue={issue} /> : null}
+
         <View className="h-3" />
         {scanning ? (
           <View className="py-6 items-center">
@@ -173,7 +188,7 @@ export function PrinterSettingsScreen() {
           <View className="py-6 items-center">
             <Text className="text-sm text-muted-foreground">
               {nativeAvailable
-                ? 'No devices yet. Tap “Scan for printers”.'
+                ? 'No devices yet. Tap "Scan for printers".'
                 : 'Scanning is only available in a development build.'}
             </Text>
           </View>
@@ -224,5 +239,75 @@ export function PrinterSettingsScreen() {
         </Text>
       </View>
     </ScrollView>
+  );
+}
+
+const ISSUE_COPY: Record<Exclude<ScanIssue, 'NONE'>, { title: string; tone: string; points: string[] }> = {
+  PERMISSION: {
+    title: 'Bluetooth permission is required',
+    tone: 'border-destructive/30 bg-destructive/5',
+    points: [
+      'Allow Bluetooth nearby devices (BLUETOOTH_SCAN + BLUETOOTH_CONNECT) when the system prompt appears.',
+      'If you previously denied it, open App settings below and re-enable "Nearby devices" / "Bluetooth".',
+    ],
+  },
+  BLUETOOTH_OFF: {
+    title: 'Bluetooth is turned off',
+    tone: 'border-warning/30 bg-warning/5',
+    points: [
+      'Turn Bluetooth ON first, then scan again.',
+      'Tap "Open Bluetooth settings" below to turn it on.',
+    ],
+  },
+  SCAN_FAILED: {
+    title: 'Bluetooth scan could not start',
+    tone: 'border-warning/30 bg-warning/5',
+    points: [
+      'Make sure Location (GPS) is turned ON. Android requires it to discover nearby Bluetooth printers.',
+      'Confirm the printer is powered on and in pairing/discoverable mode.',
+      'Bluetooth is scanned for ~15 seconds then gives up. Try again if needed.',
+    ],
+  },
+  NO_DEVICES: {
+    title: 'No printer found',
+    tone: 'border-warning/30 bg-warning/5',
+    points: [
+      'Turn Location (GPS) ON while scanning.',
+      'Put the thermal printer into pairing/discoverable mode (hold its power/feed button until the LED blinks).',
+      'Pair it manually first: open Bluetooth settings and connect to the printer, then scan again.',
+    ],
+  },
+};
+
+function ScanHelpCard({ issue }: { issue: Exclude<ScanIssue, 'NONE'> }) {
+  const copy = ISSUE_COPY[issue];
+  const openBluetooth = async () => {
+    const ok = await printerService.openBluetoothSettings();
+    if (!ok) Linking.openSettings();
+  };
+  return (
+    <View className={`rounded-xl border p-3 mt-3 ${copy.tone}`}>
+      <View className="flex-row items-center gap-2">
+        <AlertTriangle size={16} color="#B45309" />
+        <Text className="text-sm font-semibold text-foreground flex-1">{copy.title}</Text>
+      </View>
+      <View className="mt-2 gap-1.5">
+        {copy.points.map((pnt, i) => (
+          <View key={i} className="flex-row gap-2">
+            <Text className="text-xs text-muted-foreground leading-5">•</Text>
+            <Text className="text-xs text-muted-foreground leading-5 flex-1">{pnt}</Text>
+          </View>
+        ))}
+      </View>
+      <View className="mt-3">
+        <Pressable
+          onPress={openBluetooth}
+          className="self-start flex-row items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-card active:bg-secondary"
+        >
+          <Settings2 size={14} color="#0F172A" />
+          <Text className="text-xs font-semibold text-foreground">Open Bluetooth settings</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }

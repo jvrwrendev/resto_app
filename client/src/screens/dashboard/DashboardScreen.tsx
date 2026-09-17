@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Banknote, ClipboardList, Package, AlertTriangle, ShoppingBag, Store, User } from 'lucide-react-native';
+import { Banknote, ClipboardList, Package, AlertTriangle, ShoppingBag, Store, User, ChevronRight } from 'lucide-react-native';
 import { Header, ScreenContainer, Card, SectionTitle, EmptyState } from '@/components/ui';
 import { StatCard } from '@/components/feature/StatCard';
 import { OrderRowView } from '@/components/feature/OrderRowView';
 import { SalesBarChart } from '@/components/feature/SalesBarChart';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useOrderStore, type OrderFilter } from '@/stores/orderStore';
 import { todayStats, hourlySales, listOrdersByDate } from '@/database/repositories/orderRepository';
 import { listLowStockProducts } from '@/database/repositories/productRepository';
 import { formatPHP } from '@/utils/currency';
@@ -36,6 +37,15 @@ export function DashboardScreen() {
       load();
     }, [load]),
   );
+
+  const goToOrders = (filter: OrderFilter) => {
+    useOrderStore.getState().setFilter(filter);
+    navigation.navigate('MainTabs', { screen: 'Orders' });
+  };
+
+  const goToInventory = () => {
+    navigation.navigate('MainTabs', { screen: 'Inventory' });
+  };
 
   return (
     <ScreenContainer edges={['top']} onRefresh={load}>
@@ -68,6 +78,7 @@ export function DashboardScreen() {
           value={formatPHP(stats.totalSales)}
           icon={<Banknote size={18} color="#B45309" />}
           tone="default"
+          onPress={() => goToOrders('PAID')}
         />
         <StatCard
           className="flex-1"
@@ -75,6 +86,7 @@ export function DashboardScreen() {
           value={String(stats.orderCount)}
           icon={<ClipboardList size={18} color="#15803D" />}
           tone="success"
+          onPress={() => goToOrders('ALL')}
         />
       </View>
       <View className="flex-row gap-3 mb-3">
@@ -84,6 +96,7 @@ export function DashboardScreen() {
           value={String(stats.itemsSold)}
           icon={<ShoppingBag size={18} color="#1D4ED8" />}
           tone="default"
+          onPress={() => goToOrders('ALL')}
         />
         <StatCard
           className="flex-1"
@@ -92,6 +105,7 @@ export function DashboardScreen() {
           hint={stats.notServedCount > 0 ? 'not served' : 'all served'}
           icon={<Package size={18} color="#D97706" />}
           tone={stats.notServedCount > 0 ? 'warning' : 'success'}
+          onPress={() => goToOrders('NOT_SERVED')}
         />
       </View>
 
@@ -101,35 +115,49 @@ export function DashboardScreen() {
 
       <View className="h-4" />
 
-      <SectionTitle>Low stock products</SectionTitle>
+      <View className="flex-row items-center justify-between mb-2">
+        <SectionTitle className="mb-0">Low stock products</SectionTitle>
+        <Pressable onPress={goToInventory} className="flex-row items-center gap-0.5 py-1" hitSlop={8}>
+          <Text className="text-xs font-semibold text-primary">View all</Text>
+          <ChevronRight size={14} color="#B45309" />
+        </Pressable>
+      </View>
       {lowStock.length === 0 ? (
         <Card>
           <Text className="text-sm text-muted-foreground text-center py-2">All products are well stocked.</Text>
         </Card>
       ) : (
         lowStock.map((p) => (
-          <View key={p.id} className="bg-card border border-border rounded-2xl p-3 mb-2 flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                {p.name}
-              </Text>
-              <Text className="text-xs text-muted-foreground mt-0.5">
-                Stock: {p.current_stock} / threshold {p.low_stock_threshold}
-              </Text>
+          <Pressable key={p.id} onPress={goToInventory}>
+            <View className="bg-card border border-border rounded-2xl p-3 mb-2 flex-row items-center justify-between active:opacity-80">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {p.name}
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  Stock: {p.current_stock} / threshold {p.low_stock_threshold}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <AlertTriangle size={16} color="#D97706" />
+                <Text className="text-xs font-semibold text-warning">
+                  {p.current_stock <= 0 ? 'Out' : 'Low'}
+                </Text>
+              </View>
             </View>
-            <View className="flex-row items-center gap-2">
-              <AlertTriangle size={16} color="#D97706" />
-              <Text className="text-xs font-semibold text-warning">
-                {p.current_stock <= 0 ? 'Out' : 'Low'}
-              </Text>
-            </View>
-          </View>
+          </Pressable>
         ))
       )}
 
       <View className="h-4" />
 
-      <SectionTitle>Recent transactions</SectionTitle>
+      <View className="flex-row items-center justify-between mb-2">
+        <SectionTitle className="mb-0">Recent transactions</SectionTitle>
+        <Pressable onPress={() => goToOrders('ALL')} className="flex-row items-center gap-0.5 py-1" hitSlop={8}>
+          <Text className="text-xs font-semibold text-primary">View all</Text>
+          <ChevronRight size={14} color="#B45309" />
+        </Pressable>
+      </View>
       {recent.length === 0 ? (
         <EmptyState title="No transactions yet" description="Orders you complete will appear here." />
       ) : (

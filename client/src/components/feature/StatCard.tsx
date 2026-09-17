@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Card } from '@/components/ui';
 import { cn } from '@/theme/cn';
 
@@ -10,6 +10,7 @@ interface StatCardProps {
   icon: React.ReactNode;
   tone?: 'default' | 'success' | 'warning' | 'destructive';
   className?: string;
+  onPress?: () => void;
 }
 
 const toneClasses: Record<NonNullable<StatCardProps['tone']>, string> = {
@@ -26,8 +27,8 @@ const iconWrap: Record<NonNullable<StatCardProps['tone']>, string> = {
   destructive: 'bg-destructive/15',
 };
 
-export function StatCard({ label, value, hint, icon, tone = 'default', className }: StatCardProps) {
-  return (
+export function StatCard({ label, value, hint, icon, tone = 'default', className, onPress }: StatCardProps) {
+  const content = (
     <Card className={cn(toneClasses[tone], 'h-[112px] p-4 justify-between', className)}>
       <View className="flex-row items-start justify-between gap-2">
         <View className="flex-1">
@@ -51,5 +52,18 @@ export function StatCard({ label, value, hint, icon, tone = 'default', className
         {hint ? hint : ' '}
       </Text>
     </Card>
+  );
+
+  if (!onPress) return content;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      className={cn('active:opacity-80', className)}
+    >
+      {content}
+    </Pressable>
   );
 }

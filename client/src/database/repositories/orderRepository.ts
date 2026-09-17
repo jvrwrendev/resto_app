@@ -22,6 +22,7 @@ export interface OrderItemRow {
   unit_price: number;
   quantity: number;
   subtotal: number;
+  image_uri?: string | null;
 }
 
 export function insertOrderWithItems(
@@ -195,7 +196,11 @@ export function findOrderByNumber(orderNumber: string): OrderRow | null {
 export function listOrderItems(orderId: number): OrderItemRow[] {
   const db = getDB();
   return db.getAllSync<OrderItemRow>(
-    'SELECT * FROM order_items WHERE order_id = ?;',
+    `SELECT oi.*, p.image_uri AS image_uri
+     FROM order_items oi
+     LEFT JOIN products p ON p.id = oi.product_id
+     WHERE oi.order_id = ?
+     ORDER BY oi.id ASC;`,
     [orderId],
   );
 }

@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform, PermissionsAndroid, Linking } from 'react-native';
 import { AppError } from '@/utils/errors';
 import { ensureSetting, setSetting } from './settingsService';
 
@@ -23,6 +23,10 @@ let _connectedName = '';
 
 const PRINTER_LIB_ID = 'react-native-bluetooth-escpos-printer';
 
+// Android's discovery scan is bounded (~12s). Wait a bit longer, then give up
+// so the scan can never hang indefinitely when a device never answers.
+const SCAN_TIMEOUT_MS = 15000;
+
 function printerNativeModulesRegistered(): boolean {
   const m = NativeModules as Record<string, unknown>;
   return !!m.BluetoothManager && !!m.BluetoothEscposPrinter;
@@ -39,42 +43,163 @@ function isModuleAvailable(): boolean {
   }
 }
 
-function getPrinterLib(): {
-  BluetoothManager: any;
-  BluetoothEscposPrinter: any;
-} | null {
+interface BluetoothScannerLike {
+  enableBluetooth: () => Promise<unknown>;
+  isBluetoothEnabled: () => Promise<unknown>;
+  scanDevices: () => Promise<unknown>;
+  connect: (address: string) => Promise<unknown>;
+  getDeviceName?: () => Promise<unknown>;
+  disconnect: () => Promise<unknown>;
+}
+
+interface BluetoothPrinterLike {
+  printerAlign: (align: number) => Promise<unknown>;
+  printText: (text: string, opts?: Record<string, unknown>) => Promise<unknown>;
+  ALIGN: { CENTER: number };
+}
+
+interface PrinterNativeLib {
+  BluetoothManager: BluetoothScannerLike;
+  BluetoothEscposPrinter: BluetoothPrinterLike;
+}
+
+function getPrinterLib(): PrinterNativeLib | null {
   if (!printerNativeModulesRegistered()) return null;
   try {
-    return require(PRINTER_LIB_ID);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(PRINTER_LIB_ID) as PrinterNativeLib;
   } catch {
     return null;
   }
 }
 
-async function withLib<T>(fn: (lib: NonNullable<ReturnType<typeof getPrinterLib>>) => Promise<T>, fallback: T): Promise<T> {
-  const lib = getPrinterLib();
-  if (!lib) return fallback;
-  try {
-    return await fn(lib);
-  } catch {
-    return fallback;
+/**
+ * Request the runtime permissions the printer library needs before scanning.
+ * The library only handles ACCESS_COARSE_LOCATION itself (fire-and-forget),
+ * so we do it properly up front:
+ *  - Android 12+ (API 31+): BLUETOOTH_SCAN + BLUETOOTH_CONNECT
+ *  - Android 6–11: ACCESS_FINE_LOCATION (implied coarse, covers discovery)
+ * Returns true when everything needed is granted.
+ */
+async function ensureBluetoothPermissions(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const apiLevel = typeof Platform.Version === 'number' ? Platform.Version : 0;
+  if (apiLevel >= 31) {
+    const results = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+    ]);
+    return (
+      results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED &&
+      results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED
+    );
   }
+  const loc = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+  );
+  return loc === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+/**
+ * Normalise the mess of response shapes the native scan returns:
+ *  - a plain array of { name, address }
+ *  - the JSON string '{"paired":"[...str...]","found":"[...str...]"}'
+ *  - an object with paired/found/array keys whose values are arrays or JSON strings
+ */
+function parseScanResponse(devices: unknown): PrinterDevice[] {
+  const list: PrinterDevice[] = [];
+  const extract = (rows: unknown) => {
+    let arr = rows;
+    if (typeof rows === 'string') {
+      try {
+        arr = JSON.parse(rows);
+      } catch {
+        return;
+      }
+    }
+    if (!Array.isArray(arr)) return;
+    for (const d of arr) {
+      if (!d || typeof d !== 'object') continue;
+      const rec = d as Record<string, unknown>;
+      const address = typeof rec.address === 'string' ? rec.address : '';
+      if (!address) continue;
+      list.push({
+        name: typeof rec.name === 'string' && rec.name ? rec.name : 'Unknown Printer',
+        macAddress: address,
+      });
+    }
+  };
+  if (Array.isArray(devices)) {
+    extract(devices);
+    return list;
+  }
+  if (typeof devices === 'string') {
+    try {
+      const parsed = JSON.parse(devices) as Record<string, unknown>;
+      extract(parsed.paired);
+      extract(parsed.found);
+    } catch {
+      extract(devices);
+    }
+  } else if (devices && typeof devices === 'object') {
+    const rec = devices as Record<string, unknown>;
+    extract(rec.paired);
+    extract(rec.found);
+    extract(rec.array);
+  }
+  return list;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
 }
 
 export const printerService = {
+  /**
+   * Open the system Bluetooth settings (Android). No-op elsewhere.
+   */
+  async openBluetoothSettings(): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    try {
+      await Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+      return true;
+    } catch {
+      const opened = await Linking.openSettings().then(() => true).catch(() => false);
+      return opened;
+    }
+  },
+
   async scan(): Promise<PrinterDevice[]> {
-    return withLib<PrinterDevice[]>(async (lib) => {
-      await lib.BluetoothManager.enableBluetooth();
-      const devices = await lib.BluetoothManager.scanDevices();
-      const list: PrinterDevice[] = [];
-      const arr = Array.isArray(devices) ? devices : devices?.array ?? [];
-      for (const d of arr) {
-        if (d?.address) {
-          list.push({ name: d.name || 'Unknown Printer', macAddress: d.address });
-        }
-      }
-      return list;
-    }, []);
+    if (!printerNativeModulesRegistered()) return [];
+    if (Platform.OS === 'android') {
+      const granted = await ensureBluetoothPermissions();
+      if (!granted) throw new AppError('BLUETOOTH_PERMISSION_DENIED');
+    }
+    const lib = getPrinterLib();
+    if (!lib) return [];
+
+    await withTimeout(lib.BluetoothManager.enableBluetooth(), 2000, undefined);
+    const btEnabled = Boolean(await lib.BluetoothManager.isBluetoothEnabled());
+    if (!btEnabled) throw new AppError('BLUETOOTH_DISABLED');
+
+    try {
+      const raw = await withTimeout(lib.BluetoothManager.scanDevices(), SCAN_TIMEOUT_MS, undefined);
+      return parseScanResponse(raw);
+    } catch {
+      throw new AppError('BLUETOOTH_SCAN_FAILED');
+    }
   },
 
   async connect(macAddress: string): Promise<boolean> {
@@ -88,7 +213,10 @@ export const printerService = {
     }
     try {
       await lib.BluetoothManager.connect(macAddress);
-      const name = await lib.BluetoothManager.getDeviceName?.() ?? 'Bluetooth Printer';
+      const rawName = lib.BluetoothManager.getDeviceName
+        ? await lib.BluetoothManager.getDeviceName()
+        : null;
+      const name = typeof rawName === 'string' && rawName ? rawName : 'Bluetooth Printer';
       _connectedMac = macAddress;
       _connectedName = name;
       setSetting('connectedPrinterName', name);
