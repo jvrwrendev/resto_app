@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Input, useToast } from '@/components/ui';
+import { useToast } from '@/components/ui';
 import { useAuthStore } from '@/auth/authStore';
-import { APP_NAME, MOCK_CREDENTIALS } from '@/constants';
+import { APP_NAME } from '@/constants';
+
+const PIN_LENGTH = 4;
+const KEYPAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'DEL'];
 
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -12,99 +14,102 @@ export function LoginScreen() {
   const isAuthenticating = useAuthStore((s) => s.isAuthenticating);
   const toast = useToast();
 
-  const [email, setEmail] = useState(MOCK_CREDENTIALS.email);
-  const [password, setPassword] = useState(MOCK_CREDENTIALS.password);
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async () => {
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password');
+  const handleKeyPress = (val: string) => {
+    if (isAuthenticating) return;
+    setError(null);
+
+    if (val === 'DEL') {
+      setPin((prev) => prev.slice(0, -1));
       return;
     }
-    setError(null);
-    try {
-      await login(email.trim(), password);
-      toast.success('Welcome back');
-    } catch (e) {
-      setError('Invalid email or password');
+
+    if (pin.length < PIN_LENGTH && val !== '') {
+      setPin((prev) => prev + val);
     }
   };
 
+  // Automatic login when target PIN length is reached
+  useEffect(() => {
+    if (pin.length === PIN_LENGTH) {
+      const executeLogin = async () => {
+        try {
+          await login(pin);
+          toast.success('Welcome back');
+        } catch (e) {
+          setError('Invalid PIN. Please try again.');
+          setPin(''); // Reset PIN on error
+        }
+      };
+
+      executeLogin();
+    }
+  }, [pin]);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-background"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    <View
+      className="flex-1 bg-white justify-between px-6"
+      style={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="items-center mb-8">
-          <View className="h-16 w-16 rounded-2xl bg-primary items-center justify-center mb-4">
-            <Text className="text-white text-2xl font-bold">BBQ</Text>
-          </View>
-          <Text className="text-2xl font-bold text-foreground">{APP_NAME}</Text>
-          <Text className="text-sm text-muted-foreground mt-1">Sign in to start taking orders</Text>
+      {/* Header */}
+      <View className="items-center mt-6">
+        <View className="h-20 w-20 rounded-3xl bg-primary items-center justify-center mb-4 shadow-sm">
+          <Text className="text-white text-3xl font-extrabold">BBQ</Text>
+        </View>
+        <Text className="text-3xl font-bold text-zinc-900 tracking-wide">{APP_NAME}</Text>
+        <Text className="text-base text-zinc-500 mt-2">Enter your 4-digit MPIN</Text>
+      </View>
+
+      {/* PIN Indicators & Status */}
+      <View className="items-center my-6">
+        <View className="flex-row gap-6 mb-4">
+          {Array.from({ length: PIN_LENGTH }).map((_, i) => {
+            const isFilled = i < pin.length;
+            return (
+              <View
+                key={i}
+                className={`h-5 w-5 rounded-full border-2 border-primary ${
+                  isFilled ? 'bg-primary' : 'bg-transparent'
+                }`}
+              />
+            );
+          })}
         </View>
 
-        <Card className="p-5">
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            placeholder="you@example.com"
-            leftSlot={<Mail size={18} color="#64748B" />}
-          />
-          <View className="h-3" />
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            placeholder="Your password"
-            leftSlot={<Lock size={18} color="#64748B" />}
-            rightSlot={
-              <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-                {showPassword ? <EyeOff size={18} color="#64748B" /> : <Eye size={18} color="#64748B" />}
-              </Pressable>
+        {isAuthenticating && (
+          <ActivityIndicator size="small" className="mt-2 text-primary" />
+        )}
+
+        {error ? (
+          <Text className="text-sm font-semibold text-rose-600 mt-2 text-center bg-rose-50 px-4 py-1 rounded-full border border-rose-100">
+            {error}
+          </Text>
+        ) : null}
+      </View>
+
+      {/* GCash Style Numeric Keypad */}
+      <View className="w-full max-w-sm self-center">
+        <View className="flex-row flex-wrap justify-between">
+          {KEYPAD.map((item, index) => {
+            if (item === '') {
+              return <View key={index} className="w-[30%] h-16 mb-4" />;
             }
-          />
 
-          {error ? <Text className="text-xs text-destructive mt-3">{error}</Text> : null}
-
-          <Pressable
-            onPress={() => setRemember((v) => !v)}
-            className="flex-row items-center gap-2 mt-4"
-            hitSlop={4}
-          >
-            <View
-              className={`h-5 w-5 rounded border ${remember ? 'bg-primary border-primary' : 'border-border bg-card'}`}
-            />
-            <Text className="text-sm text-foreground">Remember me on this device</Text>
-          </Pressable>
-
-          <View className="mt-5">
-            <Button
-              label="Sign in"
-              onPress={onSubmit}
-              loading={isAuthenticating}
-              fullWidth
-              size="lg"
-              leftIcon={<LogIn size={18} color="#FFFFFF" />}
-            />
-          </View>
-        </Card>
-
-        <Text className="text-xs text-muted-foreground text-center mt-6 px-4">
-          Demo credentials are pre-filled. The auth layer is structured to plug into a future NestJS /auth/login endpoint.
-        </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            return (
+              <Pressable
+                key={index}
+                onPress={() => handleKeyPress(item)}
+                disabled={isAuthenticating}
+                className="w-[30%] h-16 mb-4 rounded-full bg-zinc-100 active:bg-zinc-200 items-center justify-center"
+              >
+                <Text className="text-zinc-900 text-2xl font-semibold">{item}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
   );
 }

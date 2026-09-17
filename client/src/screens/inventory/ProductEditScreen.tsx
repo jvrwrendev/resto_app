@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { Button, Card, Input, useToast, cn } from '@/components/ui';
 import { findProductById, createProduct, updateProduct, type Product } from '@/database/repositories/productRepository';
 import { listCategories, type Category } from '@/database/repositories/categoryRepository';
 import { useProductStore } from '@/stores/productStore';
+import { deleteImageIfManaged, persistImage } from '@/services/imageStorage';
 import { toUserMessage } from '@/utils/errors';
 import type { AppStackParamList } from '@/navigation/types';
 
@@ -26,6 +27,7 @@ export function ProductEditScreen() {
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const previousImageUriRef = useRef<string | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -41,11 +43,21 @@ export function ProductEditScreen() {
         setThreshold(String(p.low_stock_threshold));
         setCategoryId(p.category_id);
         setImageUri(p.image_uri ?? null);
+        previousImageUriRef.current = p.image_uri ?? null;
       }
     } else {
       setCategoryId(cats[0]?.id ?? null);
     }
   }, [productId]);
+
+  const replaceImage = async (tempUri: string): Promise<void> => {
+    const persisted = await persistImage(tempUri);
+    if (previousImageUriRef.current && previousImageUriRef.current !== persisted) {
+      deleteImageIfManaged(previousImageUriRef.current);
+    }
+    previousImageUriRef.current = persisted;
+    setImageUri(persisted);
+  };
 
   const pickImage = async () => {
     try {
@@ -64,7 +76,7 @@ export function ProductEditScreen() {
         quality: 0.7,
       });
       if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+        await replaceImage(result.assets[0].uri);
       }
     } catch (e) {
       toast.error(toUserMessage(e));
@@ -84,18 +96,24 @@ export function ProductEditScreen() {
         quality: 0.7,
       });
       if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+        await replaceImage(result.assets[0].uri);
       }
     } catch (e) {
       toast.error(toUserMessage(e));
     }
   };
 
+  const removeImage = () => {
+    deleteImageIfManaged(imageUri);
+    previousImageUriRef.current = null;
+    setImageUri(null);
+  };
+
   const showImageOptions = () => {
     Alert.alert('Product image', 'Choose a source', [
       { text: 'Take photo', onPress: takePhoto },
       { text: 'Choose from library', onPress: pickImage },
-      ...(imageUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
+      ...(imageUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: removeImage }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
@@ -158,7 +176,7 @@ export function ProductEditScreen() {
               <>
                 <Image source={{ uri: imageUri }} className="w-full h-full" resizeMode="cover" />
                 <Pressable
-                  onPress={() => setImageUri(null)}
+                  onPress={removeImage}
                   hitSlop={8}
                   className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/60 items-center justify-center"
                 >

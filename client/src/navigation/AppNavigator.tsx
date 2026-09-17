@@ -9,6 +9,7 @@ import { ReceiptScreen } from '@/screens/pos/ReceiptScreen';
 import { PrinterSettingsScreen } from '@/screens/settings/PrinterSettingsScreen';
 import { ReceiptSettingsScreen } from '@/screens/settings/ReceiptSettingsScreen';
 import { ApplicationInfoScreen } from '@/screens/settings/ApplicationInfoScreen';
+import { ChangePasswordScreen } from '@/screens/settings/ChangePasswordScreen';
 import type { AppStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -66,6 +67,11 @@ export function AppNavigator() {
         name="ApplicationInfo"
         component={ApplicationInfoScreen}
         options={{ title: 'Application' }}
+      />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{ title: 'Change PIN' }}
       />
     </Stack.Navigator>
   );

@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   User,
+  KeyRound,
   ReceiptText,
   Info,
   LogOut,
@@ -63,10 +64,26 @@ export function SettingsScreen() {
           </View>
           <View className="flex-1">
             <Text className="text-base font-semibold text-foreground">{session?.user.name ?? 'User'}</Text>
-            <Text className="text-xs text-muted-foreground">{session?.user.email ?? ''}</Text>
+            <Text className="text-xs text-muted-foreground">
+              {session?.user.role === 'ADMIN' ? 'Administrator' : 'Cashier'}
+            </Text>
           </View>
         </View>
         <View className="h-3" />
+        <Pressable
+          onPress={() => navigation.navigate('ChangePassword')}
+          className="flex-row items-center gap-3 py-1.5"
+        >
+          <View className="h-10 w-10 rounded-xl bg-primary/10 items-center justify-center">
+            <KeyRound size={18} color="#B45309" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-foreground">Change PIN</Text>
+            <Text className="text-xs text-muted-foreground mt-0.5">Update your numeric login PIN</Text>
+          </View>
+          <ChevronRight size={18} color="#64748B" />
+        </Pressable>
+        <Divider className="my-3" />
         <Button
           label="Sign out"
           variant="outline"

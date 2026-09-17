@@ -18,6 +18,7 @@ export type AppStackParamList = {
   PrinterSettings: undefined;
   ReceiptSettings: undefined;
   ApplicationInfo: undefined;
+  ChangePassword: undefined;
 };
 
 export type AuthStackParamList = {

@@ -1,6 +1,7 @@
 import { getDB } from './database';
 import { SCHEMA_STATEMENTS } from './schema';
 import { seedDatabase } from './seed';
+import { migrateExistingImages } from '@/services/imageStorage';
 import { AppError } from '@/utils/errors';
 
 let _initialized = false;
@@ -15,6 +16,11 @@ export function initDatabase(): void {
     }
     runMigrations(db);
     seedDatabase();
+    try {
+      migrateExistingImages();
+    } catch {
+      // Best-effort: existing images will remain as-is if migration fails.
+    }
     _initialized = true;
   } catch (err) {
     throw new AppError('DB_INIT_FAILED');

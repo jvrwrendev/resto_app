@@ -7,8 +7,10 @@ interface AuthState {
   session: Session | null;
   isHydrated: boolean;
   isAuthenticating: boolean;
+  isChangingPassword: boolean;
   hydrate: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (pin: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -16,19 +18,31 @@ export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   isHydrated: false,
   isAuthenticating: false,
+  isChangingPassword: false,
 
   async hydrate() {
     const session = await authService.getSession();
     set({ session, isHydrated: true });
   },
 
-  async login(email, password) {
+  async login(pin) {
     set({ isAuthenticating: true });
     try {
-      const session = await authService.login({ email, password });
+      const session = await authService.login({ pin });
       set({ session, isAuthenticating: false });
     } catch (err) {
       set({ isAuthenticating: false });
+      throw err;
+    }
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    set({ isChangingPassword: true });
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      set({ isChangingPassword: false });
+    } catch (err) {
+      set({ isChangingPassword: false });
       throw err;
     }
   },

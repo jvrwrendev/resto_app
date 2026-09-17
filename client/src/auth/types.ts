@@ -2,7 +2,6 @@ export type Role = 'ADMIN' | 'CASHIER';
 
 export interface User {
   id: string;
-  email: string;
   name: string;
   role: Role;
 }
@@ -14,6 +13,5 @@ export interface Session {
 }
 
 export interface LoginPayload {
-  email: string;
-  password: string;
+  pin: string;
 }

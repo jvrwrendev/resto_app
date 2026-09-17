@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
-import { View, Text, FlatList, Pressable } from 'react-native';
+import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -12,7 +12,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Header,
   ScreenContainer,
-  Tabs,
   EmptyState,
   Input,
   useToast,
@@ -163,13 +162,50 @@ export function PosScreen() {
         />
       </View>
 
-      <View className="mb-3">
-        <Tabs
-          items={tabs}
-          value={activeKey}
-          onChange={(k) => setCategory(k === 'all' ? null : Number(k))}
-          scrollable
-        />
+      <View className="px-4 mb-3">
+        <View
+          className="bg-card border border-border rounded-full overflow-hidden"
+          style={{
+            shadowColor: '#0F172A',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.12,
+            shadowRadius: 16,
+            elevation: 6,
+          }}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: 'center',
+              gap: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            {tabs.map((it) => {
+              const active = it.key === activeKey;
+              return (
+                <Pressable
+                  key={it.key}
+                  onPress={() => setCategory(it.key === 'all' ? null : Number(it.key))}
+                  className={`h-9 px-4 items-center justify-center rounded-full border ${
+                    active ? 'bg-primary border-primary' : 'bg-card border-border'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm font-medium ${
+                      active ? 'text-primary-foreground' : 'text-foreground'
+                    }`}
+                  >
+                    {it.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
 
       {filtered.length === 0 ? (
